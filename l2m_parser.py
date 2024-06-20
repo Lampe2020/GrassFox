@@ -14,7 +14,7 @@ elmnt_list:         ( STRING | element | block )*
 element:            "#" /[a-z0-9_][a-z0-9\-\_\.\: ]*/i taglist "{" elmnt_list "}"
 tag:                [ /[a-z0-9_]+/ [ "=" ( STRING | block | /[^\]]+/s ) ] ]
 taglist:            ( "[" tag "]" )+
-block:              /<<<(.*?)>>>/s
+block:              /<<<(.*?)>>>/s  // Waiting on https://github.com/lark-parser/lark/issues/1425 for forgiving syntax
 """, start='elmnt_list')
 
 class L2mTransformer(lark.Transformer_NonRecursive):
