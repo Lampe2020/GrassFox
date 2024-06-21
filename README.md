@@ -11,7 +11,7 @@ An example:
         #PageIcon[url="./favicon.ico"] {}
         #StyleSheet[] {
             <<<
-                header {
+                Header {
                     color: lightblue;
                 }
             >>>
@@ -24,7 +24,7 @@ An example:
         }
     }
     #Body[] {
-        #Header[] {"Hello World!"}
+        #Header[style="text-decoration:underline"] {"Hello World!"}
         "Lorem ipsum dolor sit amet."
         #Button[onclick="alert:'Consectetur adipiscing elit.'"] {
             "Click me!"
