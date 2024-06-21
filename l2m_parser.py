@@ -8,8 +8,9 @@ A LARK-based parser for L2m (Lampe2020 Markup)
 import lark
 
 parser:lark.Lark = lark.Lark("""%import common.WS -> _WS
-%ignore _WS // Wherever unecessary, just ignore it.
-%import common.ESCAPED_STRING -> STRING
+%ignore             /<<<!(.*?)>>>/s
+%ignore             _WS // Wherever unecessary, just ignore it.
+%import             common.ESCAPED_STRING -> STRING
 elmnt_list:         ( STRING | element | block )*
 element:            "#" /[a-z0-9_][a-z0-9\-\_\.\: ]*/i taglist "{" elmnt_list "}"
 tag:                [ /[a-z0-9_]+/ [ "=" ( STRING | block | /[^\]]+/s ) ] ]
