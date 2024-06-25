@@ -12,7 +12,7 @@ parser:lark.Lark = lark.Lark("""%import common.WS -> _WS
 %ignore             _WS // Wherever unecessary, just ignore it.
 %import             common.ESCAPED_STRING -> STRING
 elmnt_list:         ( STRING | element | block )*
-element:            "#" /[a-z0-9_][a-z0-9\-\_\.\: ]*/i taglist "{" elmnt_list "}"
+element:            "#" /[a-z0-9_][a-z0-9\-\_\.\: ]*/i taglist "{" elmnt_list "}" [ /[a-z0-9_][a-z0-9\-\_\.\: ]*/i "#" ]
 tag:                [ /[a-z0-9_]+/ [ "=" ( STRING | block | /[^\]]+/s ) ] ]
 taglist:            ( "[" tag "]" )+
 block:              /<<<(.*?)>>>/s  // Waiting on https://github.com/lark-parser/lark/issues/1425 for forgiving syntax
