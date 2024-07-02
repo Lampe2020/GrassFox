@@ -1,1 +1,0 @@
-# GrassFox Style Sheet
