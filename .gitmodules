@@ -1,12 +1,3 @@
 [submodule "markup"]
 	path = l2m
 	url = https://github.com/Lampe2020/l2m.git
-[submodule "l2m"]
-	path = l2m
-	url = https://github.com/Lampe2020/l2m.git
-[submodule "gss"]
-	path = gss
-	url = https://github.com/Lampe2020/gss.git
-[submodule "arrowey"]
-	path = arrowey
-	url = https://github.com/Lampe2020/arrowey.git
