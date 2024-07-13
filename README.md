@@ -16,7 +16,8 @@ I'll write documentation later on, at first I want to get it into working shape
 # Notes about arrowey itself
 * arrowey is a strongly-typed language, meaning that you have to explicitly convert variables to a different type to use 
 them as that different type, ints and floats are the only exceptions from that rule and can e.g. directly be inserted 
-used together in arithmetic operations without explicit conversion, in that case the operation always returns a float.
+and used together in arithmetic operations without explicit conversion, in that case the operation always returns a 
+float.
 * If given, variable type assignments are strictly enforced. Untyped variables are technically typed `any` and can thus 
 hold any type. Here, no exception for ints and floats is made, so you cannot assign an integer or float to a string-only
 typed variable. You also can't assign a float to an int variable or vice versa, so keep that in mind when trying to do 
@@ -29,9 +30,8 @@ assigning them a whole number in the type assignment. You cannot assign a list o
 can assign a list of types with different dimension counts. Casting a vector to a different vector either removes 
 dimensions from the end of the vector's dimension list or adds zeroed ones, depending on if dimensions are removed or 
 added. A type assignment of `vec(1)` is functionally identical to a type assignment of  `float`. 
-* Vectors can either be mixed vectors (`vec`), int-only vectors (`intvec`) or float-only vectors (`floatvec`). 
-One-dimensional vectors don't exist and casting to a one-dimensional vector converts the given number / given vector's 
-first dimension to int for `intvec`, to float for `floatvec` or leaves it as int or float for normal `vec`. 
-Zero-dimensional vectors are automatically interpreted as `<>` and negative-dimension vectors are interpreted as the 
-same positive-dimension vector (e.g. `vec(-3)` is identical to `vec(3)`).
+* Vectors can either be float vectors (`vec`) or int-only vectors (`intvec`). One-dimensional vectors don't exist and 
+casting to a one-dimensional vector converts the given number / given vector's first dimension to float for `vec` or to 
+int for `intvec`. Zero-dimensional vectors are automatically interpreted as `<>` and negative-dimension vectors are 
+interpreted as the same positive-dimension vector (e.g. `vec(-3)` is identical to `vec(3)`).
 * 

@@ -12,7 +12,7 @@ error_catching_scope:           "@" scope "_" scope [ "_" scope ] // Any variabl
 conditional_scope:              "/(" expression ")" scope ( "_(" expression ")" scope )* ( "_" scope )? // Any variables defined in any of the sub scopes will be backwards-inherited to the parent scope.
 looping_scope:                  "&(" expression ")" scope
 unicode_character:              ( "\\x" HEX_DIGIT HEX_DIGIT ) | ( "\\u" HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT )
-?expression:                    ( format_string | STRING | file_import | REGEX | NUMBER | vector | array | class_definition | object | dynamic_obj_prop_access | object_property_reference | inline_if | inversion | logic_operation | assignment | comparison | function_definition | function_call | variable_reference | import | scope | error_catching_scope | conditional_scope | looping_scope | type_cast_expression | arithmetic_operation | ( "--" expression ) | unary_negative_expression | ( "+" expression ) | ( "(" _VAR_LEN_SPACE? expression? _VAR_LEN_SPACE? ")" ) ) // Can be nested. QUestion mark infront of name definition means this gets inlined and not added as a seperate, redundant step into the parse tree.
+?expression:                    ( STRING | file_import | REGEX | NUMBER | vector | array | class_definition | object | dynamic_obj_prop_access | object_property_reference | inline_if | inversion | logic_operation | assignment | comparison | function_definition | function_call | variable_reference | import | scope | error_catching_scope | conditional_scope | looping_scope | type_cast_expression | arithmetic_operation | ( "--" expression ) | unary_negative_expression | ( "+" expression ) | ( "(" _VAR_LEN_SPACE? expression? _VAR_LEN_SPACE? ")" ) ) // Can be nested. QUestion mark infront of name definition means this gets inlined and not added as a seperate, redundant step into the parse tree.
 type_cast_expression:           type_assignment expression // Directly prepend any expression with a type assignment to convert its return value to the assigned type. Note: for now it's a greedy rule, swallowing arithmetic operations (e.g. (int)<x>+(int)<y> is <x>+(int)<y> cast to int)
 assignment:                     type_assignment? ( variable_reference | object_property_reference ) _opt_spacepadded{EQUAL_SIGN} expression
 type_assignment:                "(" _sep{type_ident, "|"} ")"
@@ -26,7 +26,7 @@ UNPACK_OBJ:                     "**"
 import:                         IMPORT_FLAG "<" _opt_spacepadded{IMPORT_IDENT} ">" _import_choice
 _import_choice:                 "{" _opt_spacepadded{_sep{IDENTIFIER, _opt_spacepadded{";"}}} "}"
 IMPORT_IDENT:                   IDENTIFIER ( ";;" IDENTIFIER )* // Can't use templates here because it's a terminal
-file_import:                    IMPORT_FLAG ( STRING | format_string ) _import_choice? // Import a file. You need to assign it to a variable manually.
+file_import:                    IMPORT_FLAG STRING _import_choice? // Import a file. You need to assign it to a variable manually.
 IMPORT_FLAG:                    "i"
 variable_reference:             [ VAR_SCOPEFLAG_GLOBAL | VAR_SCOPEFLAG_PRIVATE ] [ VARFLAG_CONST | VARFLAG_DELETE ] FLAGLESS_VARIABLE_REFERENCE
 VAR_SCOPEFLAG_GLOBAL:           "g"
@@ -37,7 +37,6 @@ object_property_reference:      expression ( ";;" ( FLAGLESS_VARIABLE_REFERENCE 
 FLAGLESS_VARIABLE_REFERENCE:    "<" [ ( "0" | "1" | IDENTIFIER ) ] ">"
 IDENTIFIER:                     [ LETTER | "_" ] ( LETTER | DIGIT | "_")+
 ESCAPE_SEQUENCE.1:              "\\" ( "'" | "\"" | "n" | "r" | "d" | "\\" | "$" | "'" | "\"" | "`" | ( DIGIT ) | ( "x" HEX_DIGIT~2 ) | ( "u" HEX_DIGIT~4 ) | ( "s" LETTER+ ";" ) ) // A bunch of escape sequences. Priority 1 (.1 at the end of name) instead of 0.
-format_string:                  "`" ( ESCAPE_SEQUENCE | ( "$<(" expression ")>" ) | ( CHARACTER | "'" | "\"" ) )* "`"
 STRING:                         ("\"" ( /[^\\\"]/ | "\\\"" | "\\\\" | "\\n" | "\\r" | ( "\\x" ( DIGIT | "a".."f" | "A".."F" )~2 ) | ( "\\u" ( DIGIT | "a".."f" | "A".."F" )~4 ) )* "\"")    // Double-quote string
                                 | ("'" ( /[^\\']/ | "\\'" | "\\\\" | "\\n" | "\\r" | ( "\\x" ( DIGIT | "a".."f" | "A".."F" )~2 ) | ( "\\u" ( DIGIT | "a".."f" | "A".."F" )~4 ) )* "'")      // Single-quote string
                                 //TODO: Allow for strings to be chained together with arrows to a single string, e.g. "A"'B'e='AB' or 'A'→"B"e="AB", ...
