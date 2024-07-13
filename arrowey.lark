@@ -1,0 +1,81 @@
+%ignore                         "\t" | "\n"
+%ignore                         /\/\*.*\*\//sm // JS-like comments
+_sep{x, sep}:                   [ x ( sep x )* ] // Allow for easy separation of anything
+_separated{x, sep}:             sep* _sep{x, sep} sep* // Allow for easy separation of anything, including being padded with sep
+_opt_spacepadded{x}:            _VAR_LEN_SPACE? x _VAR_LEN_SPACE?
+_spacepadded{x}:                _VAR_LEN_SPACE x _VAR_LEN_SPACE
+_expr_sep:                      ( "←" | "↓" | "↑" | "→" )
+start:                          _separated{instruction, _opt_spacepadded{_expr_sep}}?
+?instruction:                   expression | keyword
+scope:                          "[" _separated{instruction, _opt_spacepadded{_expr_sep}}? "]" // enclosing a set of instructions in squared braces sets it into an own scope
+error_catching_scope:           "@" scope "_" scope [ "_" scope ] // Any variables defined inside the first or second scope will be available in all subsequent scopes inside the error_catching_scope, except <err>, which is always defined in the second and third scope and contains either the error that occurred in the first scope or <>, overriding the <err> variable if defined in the first or second scope. Any variables defined inside any of the sub scopes in the error_catching_scope are backwards-inherited to the scope containing the error_catching_scope, allowing for trying to import a module and if that fails, importing another or setting an alternative value to the same variable name.
+conditional_scope:              "/(" expression ")" scope ( "_(" expression ")" scope )* ( "_" scope )? // Any variables defined in any of the sub scopes will be backwards-inherited to the parent scope.
+looping_scope:                  "&(" expression ")" scope
+unicode_character:              ( "\\x" HEX_DIGIT HEX_DIGIT ) | ( "\\u" HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT )
+?expression:                    ( STRING | file_import | REGEX | NUMBER | vector | array | class_definition | object | dynamic_obj_prop_access | object_property_reference | inline_if | inversion | logic_operation | assignment | comparison | function_definition | function_call | variable_reference | import | scope | error_catching_scope | conditional_scope | looping_scope | type_cast_expression | arithmetic_operation | ( "--" expression ) | unary_negative_expression | ( "+" expression ) | ( "(" _VAR_LEN_SPACE? expression? _VAR_LEN_SPACE? ")" ) ) // Can be nested. QUestion mark infront of name definition means this gets inlined and not added as a seperate, redundant step into the parse tree.
+type_cast_expression:           type_assignment expression // Directly prepend any expression with a type assignment to convert its return value to the assigned type. Note: for now it's a greedy rule, swallowing arithmetic operations (e.g. (int)<x>+(int)<y> is <x>+(int)<y> cast to int)
+assignment:                     type_assignment? ( variable_reference | object_property_reference ) _opt_spacepadded{EQUAL_SIGN} expression
+type_assignment:                "(" _sep{type_ident, "|"} ")"
+type_ident:                     _sep{IDENTIFIER, ";;"} [ "(" type_ident ")" ] // Note: because of this a type assignment always has a list of things in the parse tree, of which the last one is either None or another type assignment for e.g. int(8) or vec(3); every other element in that token list is an identifier for an object/a property of that object.
+function_call:                  ( ( [ expression ";;" ] IDENTIFIER) | expression ) ":" _opt_spacepadded{funccall_argument}*
+funccall_argument:              [ [ UNPACK_ARR | UNPACK_OBJ ] FLAGLESS_VARIABLE_REFERENCE _opt_spacepadded{EQUAL_SIGN} ] expression
+function_definition:            type_assignment? variable_reference _opt_spacepadded{funcdef_argument}* scope
+funcdef_argument:               ( type_assignment? [ UNPACK_ARR | UNPACK_OBJ ] FLAGLESS_VARIABLE_REFERENCE [ _opt_spacepadded{EQUAL_SIGN} expression ] )
+UNPACK_ARR:                     "*"
+UNPACK_OBJ:                     "**"
+import:                         IMPORT_FLAG "<" _opt_spacepadded{IMPORT_IDENT} ">" _import_choice
+_import_choice:                 "{" _opt_spacepadded{_sep{IDENTIFIER, _opt_spacepadded{";"}}} "}"
+IMPORT_IDENT:                   IDENTIFIER ( ";;" IDENTIFIER )* // Can't use templates here because it's a terminal
+file_import:                    IMPORT_FLAG STRING _import_choice? // Import a file. You need to assign it to a variable manually.
+IMPORT_FLAG:                    "i"
+variable_reference:             [ VAR_SCOPEFLAG_GLOBAL | VAR_SCOPEFLAG_PRIVATE ] [ VARFLAG_CONST | VARFLAG_DELETE ] FLAGLESS_VARIABLE_REFERENCE
+VAR_SCOPEFLAG_GLOBAL:           "g"
+VAR_SCOPEFLAG_PRIVATE:          "p"
+VARFLAG_CONST:                  "c"
+VARFLAG_DELETE:                 "d"
+object_property_reference:      expression ( ";;" ( FLAGLESS_VARIABLE_REFERENCE | POSITIVE_INTEGER ) )+
+FLAGLESS_VARIABLE_REFERENCE:    "<" [ ( "0" | "1" | IDENTIFIER ) ] ">"
+IDENTIFIER:                     [ LETTER | "_" ] ( LETTER | DIGIT | "_")+
+ESCAPE_SEQUENCE.1:              "\\" ( "'" | "\"" | "n" | "r" | "d" | "\\" | "$" | "'" | "\"" | "`" | ( DIGIT ) | ( "x" HEX_DIGIT~2 ) | ( "u" HEX_DIGIT~4 ) | ( "s" LETTER+ ";" ) ) // A bunch of escape sequences. Priority 1 (.1 at the end of name) instead of 0.
+STRING:                         ("\"" ( /[^\\\"]/ | "\\\"" | "\\\\" | "\\n" | "\\r" | ( "\\x" ( DIGIT | "a".."f" | "A".."F" )~2 ) | ( "\\u" ( DIGIT | "a".."f" | "A".."F" )~4 ) )* "\"")    // Double-quote string
+                                | ("'" ( /[^\\']/ | "\\'" | "\\\\" | "\\n" | "\\r" | ( "\\x" ( DIGIT | "a".."f" | "A".."F" )~2 ) | ( "\\u" ( DIGIT | "a".."f" | "A".."F" )~4 ) )* "'")      // Single-quote string
+                                //TODO: Allow for strings to be chained together with arrows to a single string, e.g. "A"'B'e='AB' or 'A'→"B"e="AB", ...
+REGEX:                          ( "g" | "i" | "m" | "s" | "u" | "y" )* "#" STRING // Flags: global, case insensitive, multiline, dotall, unicode, sticky.
+CHARACTER:                      /[^"'`\\]/ // Everything that's not a doublequote, singlequote, backtick or backslash
+object:                         VARFLAG_CONST? "{" [ _separated{obj_literal_prop_def, _opt_spacepadded{";"}} | ";"* ] "}"
+class_definition:               VARFLAG_CONST? "o" CLASS_NAME_DEF CLASS_EXTENDS_DEF? scope // A scope with "o{some_name}" prefix is a class that automatically assigns itself to <some_name>. If it also has the "e{some_name}" prefix it extends another class and has to call the "super:" constructor in its "constructor:" method.
+CLASS_NAME_DEF:                 "{" IDENTIFIER "}" _VAR_LEN_SPACE?
+CLASS_EXTENDS_DEF:              "e{" IDENTIFIER "}" _VAR_LEN_SPACE?
+obj_literal_prop_def:           (STRING | FLAGLESS_VARIABLE_REFERENCE | IDENTIFIER | POSITIVE_INTEGER) _opt_spacepadded{"="} expression
+array:                          "c"? "a{" ( _separated{expression, _opt_spacepadded{";"}} | ";"* )? "}"
+dynamic_obj_prop_access:        expression "{" ( expression | "*" ) "}" // <something_new> = <something_old>{*} clones <something_old>'s contents to <something_new>
+inline_if:                      _opt_spacepadded{expression} "?" _opt_spacepadded{expression} "*" _opt_spacepadded{expression} // Also called "ternary"
+NUMBER:                         INTEGER_NUMBER | FLOAT_NUMBER
+vector:                         "(" _VAR_LEN_SPACE? expression _opt_spacepadded{"|"} _sep{expression, _opt_spacepadded{"|"}} ")"
+LETTER:                         LOWERCASE_LETTER | UPPERCASE_LETTER
+LOWERCASE_LETTER:               "a".."z" | "ä" | "æ" | "ö" | "ø" | "œ" | "å" | "ü"
+UPPERCASE_LETTER:               "A".."Z" | "Ä" | "Æ" | "Ö" | "Ø" | "Œ" | "Å" | "Ü"
+comparison:                     expression _opt_spacepadded{COMPARISON_OPERATOR} expression
+COMPARISON_OPERATOR:            ( "L" | "l" | "e" | "g" | "G" | "n" | "E" ) EQUAL_SIGN // less than, less than or equal, equal, greater than or equal, greater than, not equal, self-identical (two references to the same object)
+HEX_DIGIT:                      DIGIT | "a"i | "b"i | "c"i | "d"i | "e"i | "f"i // LARK string with i behind closing quote: case-insensitive string
+DIGIT:                          "0" | NONZERO_DIGIT
+INTEGER_NUMBER:                 NEGATION? ( ( "0" | ( NONZERO_DIGIT POSITIVE_INTEGER* ) | HEX_INTEGER_NUMBER | BIN_INTEGER_NUMBER ) )
+HEX_INTEGER_NUMBER:             "0x"i HEX_DIGIT+
+BIN_INTEGER_NUMBER:             "0b"i ( "1" | "0" ) ( "1" | "0" )*
+FLOAT_NUMBER:                   ( NEGATION? POSITIVE_INTEGER? ( "." | ",") "0"* POSITIVE_INTEGER ) | NAN | INFINITY // The extra optional repeated 0 is to allow for floats to have zeroes between the decimal point and the first following non-zero digit, as POSITIVE_INTEGER only can be exactly 0 or starting with a non-zero digit
+NAN:                            /N((otANum(ber)?)|(aN(um(ber)?)?))/i
+INFINITY:                       /Inf(inity)?/i
+NONZERO_DIGIT:                  /[1-9]/
+_VAR_LEN_SPACE:                 " "+
+NEGATION:                       "-"
+unary_negative_expression:      "-" expression // This is there to enable chaining of "-" operator and is functionally the same as "expression•-1"
+EQUAL_SIGN:                     "="
+POWER_OPERATOR:                 "^"
+DOT_OPERATOR:                   "•" | "/" | "%" // times, divided by, modulo
+DASH_OPERATOR:                  "+" | NEGATION // plus, minus
+POSITIVE_INTEGER:               "0" | ( NONZERO_DIGIT DIGIT* ) // zero or any whole NUMBER not starting with zero
+logic_operation:                ( expression _opt_spacepadded{LOGIC_OPERATOR} expression ) | inversion
+inversion:                      ( "n" ) "^" _VAR_LEN_SPACE? expression // Technically also a logic operation, I just count it as an own thing because it's unary.
+LOGIC_OPERATOR:                 ( "a" | "o" | "x" | "l" | "r" ) "^" // and, or, xor, lshift, rshift
+arithmetic_operation:           ( expression _opt_spacepadded{DASH_OPERATOR} expression ) | ( expression _opt_spacepadded{DOT_OPERATOR} expression ) | ( expression _opt_spacepadded{POWER_OPERATOR} expression )
+keyword:                        "~" IDENTIFIER // ~br for break, ~cont for continue, [expression]→~ret for return, [expression]→~throw for throw, [expression]→~end to immediately quit the program (shortcut to throwing an exit error with the given argument), custom ones can be defined. ~ret isn't always needed as arrowey has implicit return, meaning the last expression in any scope is that scope's return value.
